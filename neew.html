@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DBA Lecture 1 — Interactive Quiz</title>
+  <style>
+    :root{--bg:#0f1724;--card:#111827;--muted:#94a3b8;--accent:#06b6d4;--success:#10b981;--danger:#ef4444}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;background:linear-gradient(180deg,#071029 0%, #07172a 60%);color:#e6eef6}
+    .wrap{max-width:980px;margin:32px auto;padding:20px}
+    header{display:flex;align-items:center;gap:16px}
+    h1{margin:0;font-size:20px}
+    p.lead{color:var(--muted);margin:6px 0 18px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:18px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    button{background:var(--accent);border:none;color:#042027;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .question{padding:14px;border-radius:8px;margin-bottom:10px;background:rgba(255,255,255,0.01)}
+    .qmeta{font-size:13px;color:var(--muted);margin-bottom:8px}
+    .options{display:flex;flex-direction:column;gap:8px}
+    label.opt{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+    input[type=radio]{width:16px;height:16px}
+    .result{margin-top:16px;padding:12px;border-radius:8px}
+    .correct{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.14);color:var(--success)}
+    .incorrect{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.12);color:var(--danger)}
+    .details{margin-top:12px}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .score-badge{background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:10px}
+    @media (max-width:640px){.wrap{padding:12px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>DBA — Lecture 1 Interactive Quiz</h1>
+        <p class="lead">40 questions (20 MCQ + 20 True/False). Practice exam mode: answers shown after submission.</p>
+      </div>
+      <div style="margin-left:auto">
+        <div class="score-badge">Questions: <strong id="totalCount">0</strong> • Type: <span id="quizType">—</span></div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="topbar">
+        <div class="controls">
+          <button id="loadBtn">Load Quiz</button>
+          <button id="randomizeBtn" class="secondary">Randomize Questions</button>
+          <button id="submitBtn" class="secondary">Submit Answers</button>
+          <button id="resetBtn" class="secondary">Reset</button>
+          <button id="printBtn" class="secondary">Print / Save PDF</button>
+        </div>
+        <div>
+          <small class="qmeta">Tip: you can randomize then submit — scoring and correct answers appear below.</small>
+        </div>
+      </div>
+
+      <div id="quizArea"></div>
+
+      <div id="resultsArea"></div>
+
+    </div>
+
+    <footer>
+      <div>Created from your Lecture 1 (DBA-Lec1.pdf). Good luck on your exam — focus on backup/recovery, performance tuning, security, and roles of DBA.</div>
+    </footer>
+  </div>
+
+  <script>
+    // Questions pulled from the lecture file (Q1..Q20 MCQ + T/F 1..20) — stored as JS objects
+    const questions = [
+      // MCQs 1-20
+      {id:'MCQ1',type:'mcq',q:'What is the main focus of database management?',opts:['Data entry and report generation','Maintenance and daily operations of databases','Design, development, and overall maintenance of databases','User authentication and access control'],a:2},
+      {id:'MCQ2',type:'mcq',q:'Which of the following is not a typical task of a Database Administrator (DBA)?',opts:['Database design and modeling','Backup and recovery management','Performance monitoring','Security management'],a:0},
+      {id:'MCQ3',type:'mcq',q:'Database design and architecture involve:',opts:['Creating user accounts','Creating tables, relationships, and indexes','Writing business plans','Generating reports'],a:1},
+      {id:'MCQ4',type:'mcq',q:'Which task ensures that data is accurate and consistent in a database?',opts:['Data Integrity','Query Optimization','Security Management','Automation'],a:0},
+      {id:'MCQ5',type:'mcq',q:'Which responsibility falls under Database Administration rather than Database Management?',opts:['Creating ER diagrams','Data modeling','Monitoring and performance tuning','Database normalization'],a:2},
+      {id:'MCQ6',type:'mcq',q:'Which of the following describes Query Optimization?',opts:['Ensuring backup files are consistent','Writing SQL queries to perform efficiently','Defining database relationships','Restricting user access'],a:1},
+      {id:'MCQ7',type:'mcq',q:'What is one of the DBA\'s roles regarding system performance?',opts:['Writing application code','Configuring user interfaces','Monitoring and tuning performance','Data visualization'],a:2},
+      {id:'MCQ8',type:'mcq',q:'Which of the following best describes \u2018Backup and Recovery\u2019?',opts:['Adding new users to the system','Preventing data loss and restoring systems after failure','Designing ER diagrams','Normalizing data tables'],a:1},
+      {id:'MCQ9',type:'mcq',q:'What does Security Management involve?',opts:['Encrypting stored data and managing access control','Writing database queries','Creating database schemas','Designing indexes'],a:0},
+      {id:'MCQ10',type:'mcq',q:'Cloud Databases are typically managed through:',opts:['Local servers only','Platforms such as AWS, Azure, and Google Cloud','Manual file systems','Spreadsheet software'],a:1},
+      {id:'MCQ11',type:'mcq',q:'Which of the following tasks is shared by both database managers and database administrators?',opts:['Writing code for the user interface','Defining backup and recovery strategies','Creating marketing dashboards','Managing employees'],a:1},
+      {id:'MCQ12',type:'mcq',q:'What is the primary goal of performance tuning?',opts:['Increasing database storage capacity','Ensuring queries and operations run efficiently','Protecting against data breaches','Creating new database models'],a:1},
+      {id:'MCQ13',type:'mcq',q:'Which of these best describes \u2018Data Modeling\u2019?',opts:['A process of converting business requirements into a logical structure','Encrypting data at rest','Creating user roles','Managing query performance'],a:0},
+      {id:'MCQ14',type:'mcq',q:'Database integrity ensures that data is:',opts:['Always available online','Accurate, consistent, and valid','Visible to all users','Stored across multiple databases'],a:1},
+      {id:'MCQ15',type:'mcq',q:'Which of the following statements is true about Database Administration?',opts:['It focuses mainly on design and architecture','It handles day-to-day operation, maintenance, and security','It\'s not responsible for performance tuning','It replaces database management entirely'],a:1},
+      {id:'MCQ16',type:'mcq',q:'The DBA\'s responsibility for \u2018User Support and Training\u2019 means:',opts:['Teaching users how to create applications','Assisting users in working with the database and resolving issues','Managing the company\'s HR training system','Installing software updates'],a:1},
+      {id:'MCQ17',type:'mcq',q:'Which of these scripting languages can be used to automate DBA tasks?',opts:['Python and Bash','C# and Java','HTML and CSS','XML and JSON'],a:0},
+      {id:'MCQ18',type:'mcq',q:'When discussing cloud databases, which of these is true?',opts:['They cannot be backed up or restored','They are managed manually only','They can be hosted on platforms like AWS, Azure, or GCP','They don\'t require administration'],a:2},
+      {id:'MCQ19',type:'mcq',q:'What is the purpose of \u2018Normalization\u2019 in database design?',opts:['To increase redundancy','To remove data duplication and improve structure','To encrypt the database','To store multimedia data'],a:1},
+      {id:'MCQ20',type:'mcq',q:'Which activity would most likely be done after the database design stage?',opts:['Creating ER diagrams','Installing and configuring the DBMS','Defining business requirements','Performing data analysis'],a:1},
+      // True/False 1-20 (store as mcq with two options)
+      {id:'TF1',type:'tf',q:'Database management focuses mainly on system maintenance and configuration.',opts:['True','False'],a:1},
+      {id:'TF2',type:'tf',q:'A DBA is responsible for day-to-day database operations.',opts:['True','False'],a:0},
+      {id:'TF3',type:'tf',q:'Query optimization is about improving SQL performance.',opts:['True','False'],a:0},
+      {id:'TF4',type:'tf',q:'Data modeling is the process of assigning user permissions.',opts:['True','False'],a:1},
+      {id:'TF5',type:'tf',q:'Backup and recovery strategies are not important in database management.',opts:['True','False'],a:1},
+      {id:'TF6',type:'tf',q:'Database administration and database management mean the same thing.',opts:['True','False'],a:1},
+      {id:'TF7',type:'tf',q:'Routine maintenance includes updating DBMS software.',opts:['True','False'],a:0},
+      {id:'TF8',type:'tf',q:'Security and encryption protect against unauthorized access.',opts:['True','False'],a:0},
+      {id:'TF9',type:'tf',q:'Performance tuning is unrelated to monitoring the system.',opts:['True','False'],a:1},
+      {id:'TF10',type:'tf',q:'Automation and scripting help reduce manual work for DBAs.',opts:['True','False'],a:0},
+      {id:'TF11',type:'tf',q:'The database administrator is mainly responsible for developing new database applications.',opts:['True','False'],a:1},
+      {id:'TF12',type:'tf',q:'Data integrity helps maintain consistency and accuracy within the system.',opts:['True','False'],a:0},
+      {id:'TF13',type:'tf',q:'The DBA\'s job ends once the database is installed.',opts:['True','False'],a:1},
+      {id:'TF14',type:'tf',q:'Performance tuning includes managing indexes and optimizing SQL queries.',opts:['True','False'],a:0},
+      {id:'TF15',type:'tf',q:'Automation reduces repetitive manual work in database administration.',opts:['True','False'],a:0},
+      {id:'TF16',type:'tf',q:'Security management ensures all users can access all data.',opts:['True','False'],a:1},
+      {id:'TF17',type:'tf',q:'A DBA should understand cloud technologies like AWS and Google Cloud.',opts:['True','False'],a:0},
+      {id:'TF18',type:'tf',q:'Backup and recovery strategies are optional in modern databases.',opts:['True','False'],a:1},
+      {id:'TF19',type:'tf',q:'Database management focuses only on local databases, not cloud ones.',opts:['True','False'],a:1},
+      {id:'TF20',type:'tf',q:'Monitoring tools help DBAs detect slow queries and system bottlenecks.',opts:['True','False'],a:0}
+    ];
+
+    let currentSet = [];
+
+    const totalCountEl = document.getElementById('totalCount');
+    const quizTypeEl = document.getElementById('quizType');
+    const quizArea = document.getElementById('quizArea');
+    const resultsArea = document.getElementById('resultsArea');
+    const loadBtn = document.getElementById('loadBtn');
+    const randomizeBtn = document.getElementById('randomizeBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const printBtn = document.getElementById('printBtn');
+
+    function renderQuestions(list){
+      quizArea.innerHTML = '';
+      list.forEach((q, idx) => {
+        const div = document.createElement('div');
+        div.className = 'question';
+        div.id = q.id;
+        const qnum = document.createElement('div'); qnum.className='qmeta'; qnum.textContent = `Q${idx+1} • ${q.type.toUpperCase()}`;
+        const qtext = document.createElement('div'); qtext.innerHTML = `<strong>${idx+1}. </strong> ${escapeHtml(q.q)}`;
+        const opts = document.createElement('div'); opts.className='options';
+        q.opts.forEach((opt, i) => {
+          const lbl = document.createElement('label'); lbl.className='opt';
+          const radio = document.createElement('input'); radio.type='radio'; radio.name=q.id; radio.value=i;
+          const span = document.createElement('span'); span.textContent = opt;
+          lbl.appendChild(radio); lbl.appendChild(span); opts.appendChild(lbl);
+        });
+        div.appendChild(qnum); div.appendChild(qtext); div.appendChild(opts);
+        quizArea.appendChild(div);
+      });
+    }
+
+    function loadQuiz(){
+      // by default load all questions in original order
+      currentSet = [...questions];
+      totalCountEl.textContent = currentSet.length;
+      quizTypeEl.textContent = 'MCQ + True/False';
+      renderQuestions(currentSet);
+      resultsArea.innerHTML = '';
+    }
+
+    function randomizeQuestions(){
+      // shuffle copy
+      currentSet = shuffleArray([...questions]);
+      totalCountEl.textContent = currentSet.length;
+      renderQuestions(currentSet);
+      resultsArea.innerHTML = '';
+    }
+
+    function submitAnswers(){
+      if(!currentSet.length){alert('Load the quiz first (click "Load Quiz").');return}
+      const answers = {};
+      currentSet.forEach(q=>{
+        const el = document.querySelector(`input[name=\"${q.id}\"]:checked`);
+        answers[q.id] = el ? Number(el.value) : null;
+      });
+
+      // scoring
+      let correct=0, attempted=0;
+      const detailNodes = [];
+      currentSet.forEach((q, idx)=>{
+        const user = answers[q.id];
+        const isCorrect = user === q.a;
+        if(user !== null) attempted++;
+        if(isCorrect) correct++;
+
+        const node = document.createElement('div');
+        node.className = 'details';
+        node.innerHTML = `<div class="qmeta">Q${idx+1} • ${q.id}</div>`;
+        const st = document.createElement('div');
+        st.className = isCorrect ? 'result correct' : 'result incorrect';
+        st.textContent = isCorrect ? 'Correct' : 'Incorrect';
+        const explanation = document.createElement('div');
+        const correctText = q.opts[q.a];
+        explanation.innerHTML = `<small class="qmeta">Correct answer: <strong>${escapeHtml(correctText)}</strong></small>`;
+        node.appendChild(st); node.appendChild(explanation);
+        detailNodes.push(node);
+      });
+
+      const scorePercent = Math.round((correct / currentSet.length) * 100);
+      resultsArea.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><h3>Result: ${correct}/${currentSet.length} (${scorePercent}%)</h3><div class="qmeta">Attempted: ${attempted}</div></div><div style="text-align:right"><button id=showDetails class=secondary>Show / Hide Details</button></div></div>`;
+
+      const detailsWrap = document.createElement('div'); detailsWrap.id='detailsWrap';
+      detailNodes.forEach(n=>detailsWrap.appendChild(n));
+      resultsArea.appendChild(detailsWrap);
+
+      const toggleBtn = document.getElementById('showDetails');
+      toggleBtn.addEventListener('click', ()=>{
+        if(detailsWrap.style.display==='none'){detailsWrap.style.display='block'; toggleBtn.textContent='Hide Details'}else{detailsWrap.style.display='none'; toggleBtn.textContent='Show / Hide Details'}
+      });
+      detailsWrap.style.display='none';
+      // scroll to results
+      resultsArea.scrollIntoView({behavior:'smooth'});
+    }
+
+    // helpers
+    function shuffleArray(a){
+      for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+      return a;
+    }
+    function escapeHtml(s){return s.replace(/[&<>\"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+
+    // events
+    loadBtn.addEventListener('click', loadQuiz);
+    randomizeBtn.addEventListener('click', randomizeQuestions);
+    submitBtn.addEventListener('click', submitAnswers);
+    resetBtn.addEventListener('click', ()=>{quizArea.innerHTML='';resultsArea.innerHTML='';currentSet=[];totalCountEl.textContent='0';quizTypeEl.textContent='—'});
+    printBtn.addEventListener('click', ()=>{window.print()});
+
+    // auto-load a compact quiz on open
+    loadQuiz();
+  </script>
+</body>
+</html>
